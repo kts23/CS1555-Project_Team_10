@@ -48,6 +48,7 @@ CREATE TABLE GROUPS(
 gID           varchar2(20)    not null deferrable,
 name          varchar2(50)    not null deferrable,
 description   varchar2(200)   default null,
+limit         number(5)       default null,
 CONSTRAINT PROFILE_CH CHECK (gID>0) INITIALLY IMMEDIATE DEFERRABLE,
 CONSTRAINT GROUPS_PK PRIMARY KEY (gID) INITIALLY IMMEDIATE DEFERRABLE
 );
