@@ -39,6 +39,7 @@ public class phase2 {
         String beginning;
         int num = 0;
         
+        //This part Generates a unique userID
         if(name.length() < 3){
             beginning = name;
         }
@@ -50,6 +51,7 @@ public class phase2 {
 
         try{
             ResultSet rs = stmt.executeQuery(sql);
+            //This checks that the userID generated is unique and changes the ID if it's not
             while(rs.next())
             {
                 num++;
@@ -58,7 +60,7 @@ public class phase2 {
                 rs = stmt.executeQuery(sql);
             }
             pswd = id;
-
+            //Inserts the new user to the database
             java.util.Date java_dob = df.parse(dob);
             java.sql.Date sql_dob = new java.sql.Date(java_dob.getTime());
             dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
@@ -152,7 +154,8 @@ public class phase2 {
         String confirm;
         ResultSet rs = stmt.executeQuery(sql);
         String line = "";
-	
+    
+        //if the user exists
 	    while(rs.next()){
             System.out.println("The userID is: " + rs.getString("userID") + ". The name is: " + rs.getString("name"));
             exist = 1;	
@@ -170,16 +173,20 @@ public class phase2 {
             }
             msg = msg + line + "\n";
         }
+        //checks for confimation from the user that they want to send the request
         System.out.println("Would you like to send a friend request to " + rs.getString("name") + "\n With message: " + msg);
         System.out.println("Please enter yes or no:");
         confirm = buff.readLine();
+
+        //if they say no: exit the function
         if(confirm == "no")
         {
             System.out.println("Denial confirmed. Exiting method...");
+            System.exit(0);
         }
 
         try{
-            dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE); //makes it so that multiple inserts can be made at the same time
             dbcon.setAutoCommit(false);
             
             pstmt.setString(1, cur_user);
@@ -243,16 +250,19 @@ public class phase2 {
         ArrayList<String> new_members = new ArrayList<String>();
 	
         
+        //gets all of the pending friend requests
         ResultSet rs2 = stmt.executeQuery(sel2);
         System.out.println("Friend Requests: ");
         while(rs2.next()){
             System.out.println(Integer.toString(count) +  ". " + rs2.getString("fromID") + ": " + rs2.getString("message"));
-            new_friends.add(count,rs2.getString("fromID") + "|" + rs2.getString("message"));
+            new_friends.add(count,rs2.getString("fromID") + "|" + rs2.getString("message"));//stores pending friend requests in an array
             count++;
         }
         
+        //if the current user is a manager of a group:
+        //print out all the pending group requests for those groups
         ResultSet rs1 = stmt.executeQuery(sel1);
-        group = count;
+        group = count; //group variable keeps track of which index numbers refer to group requests
         while(rs1.next()){
             if(group == count){
                 System.out.println("Group Requests: ");
@@ -262,17 +272,21 @@ public class phase2 {
             while(rs3.next())
             {
                 System.out.println(Integer.toString(count) +  ". " + rs2.getString("fromID") + ": " + rs2.getString("message"));
-                new_members.add(count-group, rs2.getString("fromID")+":"+ Integer.toString(rs1.getInt("gID")));
+                new_members.add(count-group, rs2.getString("fromID")+":"+ Integer.toString(rs1.getInt("gID"))); //stores pending group requests in an array
                 count ++;
             }
         }
+
         friends = new String[new_friends.size()];
         members = new String[new_members.size()];
         friends = new_friends.toArray(friends);
         members = new_members.toArray(members);
 
+        //asks the users for the requests that they want to accept
         System.out.println("Enter the number of the requests you want to accept. Each number should be seperated by a comma (ex. 1,2,3,4,5...)");
         String accepted = buff.readLine();
+
+        //stores the index numbers of the accepted requests in an array
         String[] parts = accepted.split(",");
         int[] nums_accepted = new int[parts.length];
         for(int i = 0; i < parts.length; i ++){
@@ -280,12 +294,14 @@ public class phase2 {
         }
 
 	    try{
+
             dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             dbcon.setAutoCommit(false);
             java.sql.Date sqlDate = new java.sql.Date(System.currentTimeMillis());
+
             for(int i = 0; i < nums_accepted.length; i++)
             {
-                if(nums_accepted[i] < group)
+                if(nums_accepted[i] < group)//inserts accepted friends into the firends table
                 {
                     String[] parts2 = friends[nums_accepted[i]].split("|");
                     pstmt.setString(1, cur_user);
@@ -294,21 +310,21 @@ public class phase2 {
                     pstmt.setString(4, parts2[1]);
                     pstmt.execute();
                 }
-                if(nums_accepted[i] >= group){
+                if(nums_accepted[i] >= group){ //inserts accepted group members into the groupmembers table
                     String[] parts3 = members[nums_accepted[i]-group].split(":");
                     prep.setInt(1, Integer.parseInt(parts3[1]));
                     prep.setString(2, parts3[0]);
                     prep.execute();
                 }
             }
-            for(int i = 0; i < friends.length; i++)
+            for(int i = 0; i < friends.length; i++) //deletes all pending friend requests for the user
             {
                 String[] partsdf = friends[i].split("|");
                 del_pf.setString(1, partsdf[0]);
                 del_pf.setString(2, cur_user);
                 del_pf.execute();
             }
-            for(int i = 0; i < members.length; i++)
+            for(int i = 0; i < members.length; i++) //deletes all pending group requests for the group
             {
                 String[] partsdg = members[i].split(":");
                 del_pg.setString(1, partsdg[0]);
@@ -345,6 +361,7 @@ public class phase2 {
             }
         }
     }
+
     //This needs to be changed to meet the requirements of the project
     private void displayFriends(Connection dbcon) throws IOException, SQLException
     {
@@ -385,6 +402,7 @@ public class phase2 {
         }
     }
 
+    //haven't made many changes to this
     private void createGroup(Connection dbcon, String name, String dct, String limit)throws IOException, SQLException
     {
         int id = 0;
@@ -449,6 +467,7 @@ public class phase2 {
         }
     }
 
+    //haven't made many changes to this
     private void initiateAddingGroup(Connection dbcon, String uid, int gid)throws IOException, SQLException
     {
         String msg = "";
@@ -518,6 +537,7 @@ public class phase2 {
         }
     }
 
+    //haven't made many changes to this
     private void sendMessageToUser(Connection dbcon, String uId)throws IOException, SQLException
     {
         int id = 0;
@@ -593,6 +613,7 @@ public class phase2 {
         }
     }
 
+    //Don't edit past this part. All these functions work correctly
     static private void sendMessageToGroup(Connection dbcon, int gid, String msg) throws IOException, SQLException
     {
         int id = 0;
