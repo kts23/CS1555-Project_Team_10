@@ -365,6 +365,7 @@ public class phase2 {
 
     private void displayFriends(Connection dbcon) throws IOException, SQLException
     {
+	 int exist = 0;
 	 String select = "0";
         String sql = "SELECT userID, name FROM PROFILE WHERE userID IN (SELECT userID1 FROM FRIENDS WHERE userID2 = '" + cur_user + "') OR userID IN (SELECT userID2 FROM FRIENDS WHERE userID1= '" + cur_user + "')"; 
 	 String sql2 = "SELECT userID, name, date_of_birth FROM PROFILE WHERE userID = '"+ select +"'";
@@ -372,7 +373,7 @@ public class phase2 {
 	  BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
 
        
-     	   do{	
+     	  do{	
 		if(select == "0"){
 		           //show the main menu
 			ResultSet rs = stmt.executeQuery(sql);
@@ -382,8 +383,8 @@ public class phase2 {
            		 	}
 
             		while(rs.next()){
-                			System.out.println("ID: " + rs.getString("userID"));
-                			System.out.println("Name: " + rs.getString("name"));
+                		System.out.println("ID: " + rs.getString("userID"));
+                		System.out.println("Name: " + rs.getString("name"));
 		   		ResultSet rs1 = stmt.executeQuery(sql);
 		     		if(!rs.next())
            		    		 {
@@ -402,7 +403,7 @@ public class phase2 {
 			}
 
 		System.out.println("Please enter the UserID you want to see or enter number 0 to return main menu:");
-        	  	select = buff.readLine();
+        	select = buff.readLine();
 	  	ResultSet rs2 = stmt.executeQuery(sql2);
 		
 		//if the user exists
