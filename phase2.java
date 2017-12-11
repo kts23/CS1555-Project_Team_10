@@ -3,31 +3,13 @@ import java.util.*;
 import java.io.*;
 import java.text.*;
 
-public class phase2 {
-    static final String url = "jdbc:oracle:thin:@class3.cs.pitt.edu:1521:dbclass";
-    private Connection dbcon; 
-    static final String username = "kts23";
-    static final String password = "3960791";
-    static private String cur_user = "xwg21";
-    
-    public static void main(String [] args) throws IOException, SQLException {
-        DriverManager.registerDriver (new oracle.jdbc.driver.OracleDriver());
-        Connection dbcon = DriverManager.getConnection(url, username, password);
-        System.out.println("Successfully Connected...");
-        sendMessageToGroup(dbcon, 1, "Hi");
-        displayMessages(dbcon);
-        displayNewMessages(dbcon);
-        searchForUser(dbcon, "Edmond Micaela");
-        threeDegrees(dbcon,"lko38","eyi68");
-        topMessages(dbcon, 10, 24);
-        dropUser(dbcon, "vbt41");
-        logOut(dbcon);
-        dbcon.close();
-        System.out.println("...Closed Connection");
-    }
+public class Phase2{
 
-    private void createUser(Connection dbcon, String name, String email, String dob) throws IOException, SQLException
+    private String cur_user = "xwg21";
+    
+    public void createUser(Connection dbcon, String name, String email, String dob) throws IOException, SQLException
     {
+        
         java.text.SimpleDateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd");
         Timestamp cur_time = new Timestamp(System.currentTimeMillis());
         Statement stmt = dbcon.createStatement();
@@ -35,9 +17,10 @@ public class phase2 {
         BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
         String sql;
         String id;
-        String pswd;
+        String pswd = " ";
         String beginning;
         int num = 0;
+        int fail = 0;
         
         //This part Generates a unique userID
         if(name.length() < 3){
@@ -49,65 +32,68 @@ public class phase2 {
         id = beginning +  Integer.toString(num);
         sql = "SELECT * FROM PROFILE WHERE userId = '" + id + "'"; 
 
-        try{
-            ResultSet rs = stmt.executeQuery(sql);
-            //This checks that the userID generated is unique and changes the ID if it's not
-            while(rs.next())
-            {
-                num++;
-                id = beginning + num;
-                sql = "SELECT * FROM PROFILE WHERE userId = '" + id + "'"; 
-                rs = stmt.executeQuery(sql);
+        while(fail == 0){
+            try{
+                fail = 0;
+                ResultSet rs = stmt.executeQuery(sql);
+                //This checks that the userID generated is unique and changes the ID if it's not
+                if(rs != null){
+                    while(rs.next())
+                    {
+                        num++;
+                        id = beginning + num;
+                        sql = "SELECT * FROM PROFILE WHERE userId = '" + id + "'"; 
+                        rs = stmt.executeQuery(sql);
+                    }
+                }
+                pswd = id;
+
+                //Inserts the new user to the database
+                java.util.Date java_dob = df.parse(dob);
+                java.sql.Date sql_dob = new java.sql.Date(java_dob.getTime());
+                dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+                dbcon.setAutoCommit(false);
+
+                pstmt.setString(1, id);
+                pstmt.setString(2, name);
+                pstmt.setString(3, email);
+                pstmt.setString(4, pswd);
+                pstmt.setDate(5, sql_dob);
+                pstmt.setDate(6, null);
+                pstmt.execute();
+
+                dbcon.commit();
+
             }
-            pswd = id;
-            //Inserts the new user to the database
-            java.util.Date java_dob = df.parse(dob);
-            java.sql.Date sql_dob = new java.sql.Date(java_dob.getTime());
-            dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-            dbcon.setAutoCommit(false);
-
-            pstmt.setString(1, id);
-            pstmt.setString(2, name);
-            pstmt.setString(3, email);
-            pstmt.setString(4, pswd);
-            pstmt.setDate(5, sql_dob);
-            pstmt.setDate(6, null);
-
-            dbcon.commit();
-
-        }
-        catch(SQLException se){
-            se.printStackTrace();
-            if (dbcon != null) {
-                try {
-                    System.err.print("Transaction is being rolled back");
-                    dbcon.rollback();
-                } catch(SQLException excep) {
-                    excep.printStackTrace();
+            catch(SQLException se){
+                if (dbcon != null) {
+                    try {
+                        System.err.println("Transaction is being rolled back");
+                        dbcon.rollback();
+                        fail = 1;
+                    } catch(SQLException excep) {
+                        excep.printStackTrace();
+                    }
+                }
+                if(se.getErrorCode() == 1)
+                {
+                    System.out.println("There is already an account associated with the email address: " + email);
+                    System.out.println("Please enter a different eamil: ");
+                    email = buff.readLine();
                 }
             }
-        }
-        catch(Exception e){
-            e.printStackTrace();
-        }
-        finally{
-            try{
-                if(stmt!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-            }
-            try{
-                if(dbcon!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
+            catch(Exception e){
+                e.printStackTrace();
             }
         }
-        System.out.println("User has been successfully created with \nID: " + id);
-        System.out.println("Password: " + password);   
+        if (fail == 0)
+        {
+            System.out.println("User has been successfully created with \nID: " + id);
+            System.out.println("Password: " + pswd);
+        }
     }
 
-    private void login(Connection dbcon, String id, String pswd) throws IOException, SQLException
+    public void login(Connection dbcon, String id, String pswd) throws IOException, SQLException
     {
         String sql = "SELECT * FROM PROFILE WHERE userID = '"+ id +"' AND password = '" + pswd +"'";
         Statement stmt = dbcon.createStatement();
@@ -120,33 +106,20 @@ public class phase2 {
                 System.out.println("Successfully Logged in...");
                 System.out.println("Welcome " + rs.getString("name"));
             }
-		}
-	    catch(SQLException se){
+        }
+        catch(SQLException se){
             se.printStackTrace();
         }
         catch(Exception e){
             e.printStackTrace();
         }
-        finally{
-            try{
-                if(stmt!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
-            }
-            try{
-                if(dbcon!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
-            }
-        }
     }
 
-    private void initiateFriendship(Connection dbcon, String id) throws IOException, SQLException
+    public void initiateFriendship(Connection dbcon, String id) throws IOException, SQLException
     {
         String msg = "";
         String sql = "SELECT userID, name FROM PROFILE WHERE userID = '"+ id +"'";
+        String sel = "SELECT * FROM Friends WHERE userID1 = '"+ cur_user +"' AND userID2 = '" + id +"' OR userID1 = '" + id + "' AND userID2 = '" + cur_user + "'";
         Statement stmt = dbcon.createStatement();
         PreparedStatement pstmt = dbcon.prepareStatement("INSERT INTO PENDINGFRIENDS values(?,?,?)");
         BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
@@ -154,15 +127,25 @@ public class phase2 {
         String confirm;
         ResultSet rs = stmt.executeQuery(sql);
         String line = "";
+        String name = "";
+        int fail = 0;
     
         //if the user exists
-	    while(rs.next()){
-            System.out.println("The userID is: " + rs.getString("userID") + "\n The name is: " + rs.getString("name"));
+        while(rs.next()){
+            System.out.println("The userID is: " + rs.getString("userID") + "\nThe name is: " + rs.getString("name"));
+            name = rs.getString("name");
             exist = 1;	
         }
         if(exist == 0){
             System.out.println("The user with id = " + id + " does not exist\nExiting Method...");
-            System.exit(0);
+            return;
+        }
+        
+        ResultSet rs2 = stmt.executeQuery(sel);
+        while(rs2.next())
+        {
+            System.out.println("You are already friends with " + name);
+            return;
         }
 
         System.out.println("Enter a message to send along with the request");
@@ -174,7 +157,7 @@ public class phase2 {
             msg = msg + line + "\n";
         }
         //checks for confimation from the user that they want to send the request
-        System.out.println("Would you like to send a friend request to " + rs.getString("name") + "\n With message: " + msg);
+        System.out.println("Would you like to send a friend request to " + name + "\n With message: " + msg);
         System.out.println("Please enter yes or no:");
         confirm = buff.readLine();
 
@@ -182,7 +165,7 @@ public class phase2 {
         if(confirm == "no")
         {
             System.out.println("Denial confirmed. Exiting method...");
-            System.exit(0);
+            return;
         }
 
         try{
@@ -192,15 +175,20 @@ public class phase2 {
             pstmt.setString(1, cur_user);
             pstmt.setString(2, id);
             pstmt.setString(3, msg);
+            pstmt.execute();
 
             dbcon.commit();
         
         }
-	    catch(SQLException se){
-            se.printStackTrace();
+        catch(SQLException se){
+            if(se.getErrorCode() == 1)
+            {
+                System.out.println("You have already sent a friend request to " + id);
+            }
+            fail = 1;
             if (dbcon != null) {
                 try {
-                    System.err.print("Transaction is being rolled back");
+                    System.err.println("Transaction is being rolled back");
                     dbcon.rollback();
                 } catch(SQLException excep) {
                     excep.printStackTrace();
@@ -210,28 +198,18 @@ public class phase2 {
         catch(Exception e){
             e.printStackTrace();
         }
-        finally{
-            try{
-                if(stmt!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-            }
-            try{
-                if(dbcon!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
-            }
+        if(fail == 0)
+        {
+            System.out.println("Request Successfully Sent");
         }
-        System.out.println("Request Successfully Sent");
     }
 
-    private void confirmFriendship(Connection dbcon) throws IOException, SQLException
+    public void confirmFriendship(Connection dbcon) throws IOException, SQLException
     {
-	    Timestamp cur_time = new Timestamp(System.currentTimeMillis());
-          int count = 0;
-	    String id = "";
-	    String my_group = "";
+        Timestamp cur_time = new Timestamp(System.currentTimeMillis());
+        int count = 0;
+        String id = "";
+        String my_group = "";
 
 
         String sel1 = "SELECT gID FROM GROUPMEMBERSHIP WHERE userID = '"+ cur_user +"' AND role = 'manager'";
@@ -248,33 +226,48 @@ public class phase2 {
         String [] members;
         ArrayList<String> new_friends = new ArrayList<String>();
         ArrayList<String> new_members = new ArrayList<String>();
-	
+    
         
         //gets all of the pending friend requests
         ResultSet rs2 = stmt.executeQuery(sel2);
         System.out.println("Friend Requests: ");
-        while(rs2.next()){
-            System.out.println(Integer.toString(count) +  ". " + rs2.getString("fromID") + ": " + rs2.getString("message"));
-            new_friends.add(count,rs2.getString("fromID") + "|" + rs2.getString("message"));//stores pending friend requests in an array
-            count++;
+        if(rs2 != null)
+        {
+            while(rs2.next()){
+                System.out.println(Integer.toString(count) +  ". " + rs2.getString("fromID") + ": " + rs2.getString("message"));
+                new_friends.add(count,rs2.getString("fromID") + "|" + rs2.getString("message"));//stores pending friend requests in an array
+                count++;
+            }
+        }
+        if(count == 0){
+            System.out.println("You do not currently have any Friend requests");
         }
         
         //if the current user is a manager of a group:
         //print out all the pending group requests for those groups
         ResultSet rs1 = stmt.executeQuery(sel1);
         group = count; //group variable keeps track of which index numbers refer to group requests
-        while(rs1.next()){
-            if(group == count){
-                System.out.println("Group Requests: ");
+        if(rs1 != null){
+            while(rs1.next()){
+                if(group == count){
+                    System.out.println("Group Requests: ");
+                }
+                sel3 = "SELECT userID, message FROM PENDINGGROUPMEMBERS WHERE gID = '"+ rs1.getInt("gID") +"'";
+                ResultSet rs3 = stmt.executeQuery(sel3);
+                while(rs3.next())
+                {
+                    System.out.println(Integer.toString(count) +  ". " + rs2.getString("userID") + ": " + rs2.getString("message"));
+                    new_members.add(count-group, rs2.getString("userID")+":"+ Integer.toString(rs1.getInt("gID"))); //stores pending group requests in an array
+                    count ++;
+                }
             }
-            sel3 = "SELECT fromID, message FROM PENDINGGROUPMEMBERS WHERE gID = '"+ rs1.getInt("gID") +"'";
-            ResultSet rs3 = stmt.executeQuery(sel3);
-            while(rs3.next())
-            {
-                System.out.println(Integer.toString(count) +  ". " + rs2.getString("fromID") + ": " + rs2.getString("message"));
-                new_members.add(count-group, rs2.getString("fromID")+":"+ Integer.toString(rs1.getInt("gID"))); //stores pending group requests in an array
-                count ++;
-            }
+        }
+        if(group == count){
+            System.out.println("There are currently no group requests");
+        }
+
+        if(count == 0){
+            return;
         }
 
         friends = new String[new_friends.size()];
@@ -293,7 +286,7 @@ public class phase2 {
             nums_accepted[i] = Integer.parseInt(parts[i]);
         }
 
-	    try{
+        try{
 
             dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             dbcon.setAutoCommit(false);
@@ -332,12 +325,15 @@ public class phase2 {
                 del_pg.execute();
             }
             dbcon.commit();
-		}
-	    catch(SQLException se){
-            se.printStackTrace();
+        }
+        catch(SQLException se){
+            if(se.getErrorCode() == 1)
+            {
+                System.out.println("You are either already friends with one of these people or they are already part of the group");
+            }
             if (dbcon != null) {
                 try {
-                    System.err.print("Transaction is being rolled back");
+                    System.err.println("Transaction is being rolled back");
                     dbcon.rollback();
                 } catch(SQLException excep) {
                     excep.printStackTrace();
@@ -347,143 +343,116 @@ public class phase2 {
         catch(Exception e){
             e.printStackTrace();
         }
-        finally{
-            try{
-                if(stmt!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-            }
-            try{
-                if(dbcon!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
-            }
-        }
     }
 
 
-    private void displayFriends(Connection dbcon) throws IOException, SQLException
+    public void displayFriends(Connection dbcon) throws IOException, SQLException
     {
-	 int exist = 0;
-	 String select = "0";
+        int exist = 0;
+        String select = "0";
         String sql = "SELECT userID, name FROM PROFILE WHERE userID IN (SELECT userID1 FROM FRIENDS WHERE userID2 = '" + cur_user + "') OR userID IN (SELECT userID2 FROM FRIENDS WHERE userID1= '" + cur_user + "')"; 
-	 String sql2 = "SELECT userID, name, date_of_birth FROM PROFILE WHERE userID = '"+ select +"'";
+        String sql2 = "SELECT userID, name, date_of_birth FROM PROFILE WHERE userID = '"+ select +"'";
         Statement stmt = dbcon.createStatement();
-	  BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
+        BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
 
-       
-     	  do{	
-		if(select == "0"){
-		           //show the main menu
-			ResultSet rs = stmt.executeQuery(sql);
-	      		if(!rs.next())
-           		 	{
-               	     		System.out.println("You do not have friends");
-           		 	}
+        System.out.println("\nFriends: ");
+        
+        do{	
+            if(select.equals("0")){
+                //show the main menu
+                ResultSet rs = stmt.executeQuery(sql);
+                if(!rs.next())
+                {
+                    System.out.println("You do not have friends");
+                }
 
-            		while(rs.next()){
-                		System.out.println("ID: " + rs.getString("userID"));
-                		System.out.println("Name: " + rs.getString("name"));
-		   		ResultSet rs1 = stmt.executeQuery(sql);
-		     		if(!rs.next())
-           		    		 {
-               	     			System.out.println("He/She does not have friends");
-           		     		 }
-	
-		   		while(rs1.next()){	         
-                				System.out.println("FriendID: " + rs.getString("UserID"));
-                				System.out.println("FriendName: " + rs.getString("name"));
-                				System.out.println();
-		    			}	
-		   			rs1.close();
-		   			System.out.println("\n");
-            			}
-            			rs.close();
-			}
+                while(rs.next()){
+                    System.out.println("ID: " + rs.getString("userID"));
+                    System.out.println("Name: " + rs.getString("name"));
+                    ResultSet rs1 = stmt.executeQuery(sql);
+                    
+                    if(!rs.next())
+                    {
+                        System.out.println("He/She does not have friends");
+                    }
 
-		System.out.println("Please enter the UserID you want to see or enter number 0 to return main menu:");
-        	select = buff.readLine();
-	  	ResultSet rs2 = stmt.executeQuery(sql2);
-		
-		//if the user exists
-	    	while(rs2.next()){
-            		System.out.println("The userID is: " + rs2.getString("userID") + "\n The name is: " + rs2.getString("name") + "\n The date of birth is: " + rs2.getString("date_of_birth"));
-            		exist = 1;	
-        	   	}
-        		if(exist == 0){
-            		System.out.println("The user does not exist\nExiting Method...");
-            		System.exit(0);
-       	  	}
-		
-		if(select == "0"){
-			System.out.println("Return to the main menu...");
-		}
-
-        }while(1)
-
-        catch(SQLException se){
-            se.printStackTrace();
-        }
-        catch(Exception e){
-            e.printStackTrace();
-        }
-        finally{
-            try{
-                if(stmt!=null)
-                    dbcon.close();
-            }catch(SQLException se){
+                    while(rs1.next()){	         
+                        System.out.println("FriendID: " + rs1.getString("UserID"));
+                        System.out.println("FriendName: " + rs1.getString("name"));
+                        System.out.println();
+                    }	
+                    rs1.close();
+                    System.out.println("\n");
+                }
+                rs.close();
             }
-            try{
-                if(dbcon!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
+
+            System.out.println("Please enter the UserID you want to see or enter number 0 to return main menu:");
+            select = buff.readLine();
+            sql2 = "SELECT userID, name, date_of_birth FROM PROFILE WHERE userID = '"+ select +"'";
+            ResultSet rs2 = stmt.executeQuery(sql2);
+            
+            //if the user exists
+            while(rs2.next()){
+                System.out.println("The userID is: " + rs2.getString("userID") + "\n The name is: " + rs2.getString("name") + "\n The date of birth is: " + rs2.getString("date_of_birth"));
+                exist = 1;	
             }
-        }
+            
+            if(select.equals("0")){
+                System.out.println("Return to the main menu...");
+                return;
+            }
+
+            if(exist == 0){
+                System.out.println("The user does not exist\nExiting Method...");
+                return;
+            }
+        }while(true);
     }
 
     
-    private void createGroup(Connection dbcon, String name, String dct, String limit)throws IOException, SQLException
+    public void createGroup(Connection dbcon, String name, String dct, int limit)throws IOException, SQLException
     {
         int id = 0;
         String role = "manager";
 
-	  String sql = "SELECT max(gID) as id FROM GROUPS";
-	  Statement stmt = dbcon.createStatement();
+        String sql = "SELECT max(gID) as id FROM GROUPS";
+        Statement stmt = dbcon.createStatement();
         PreparedStatement pstmt= dbcon.prepareStatement("INSERT INTO GROUPS values(?,?,?,?)");
-	  PreparedStatement prepStatement = dbcon.prepareStatement("INSERT INTO GROUPMEMBERSHIP values(?,?,?)");
+        PreparedStatement prepStatement = dbcon.prepareStatement("INSERT INTO GROUPMEMBERSHIP values(?,?,?)");
+        int fail = 0;
 
-	  try{
-	  	ResultSet rs = stmt.executeQuery(sql);
-            	while(rs.next()){
-             id = rs.getInt("id");
+        try{
+            ResultSet rs = stmt.executeQuery(sql);
+                while(rs.next()){
+                id = rs.getInt("id");
             }
-         rs.close();
+            rs.close();
 
-         dbcon.setAutoCommit(false);
+            dbcon.setAutoCommit(false);
             dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
 
-          pstmt.setInt(1, id+1);
-          pstmt.setString(2, name);
-          pstmt.setString(3, dct);
-          pstmt.setString(4, limit);
+            pstmt.setInt(1, id+1);
+            pstmt.setString(2, name);
+            pstmt.setString(3, dct);
+            pstmt.setInt(4, limit);
 
-          prepStatement.setInt(1, id+1); 
-          prepStatement.setString(2, cur_user);
-          prepStatement.setString(3, role);
+            prepStatement.setInt(1, id+1); 
+            prepStatement.setString(2, cur_user);
+            prepStatement.setString(3, role);
 
-          pstmt.executeUpdate();
-          prepStatement.executeUpdate();
+            pstmt.executeUpdate();
+            prepStatement.executeUpdate();
 
-          dbcon.commit();
+            dbcon.commit();
 
-		}
-	    catch(SQLException se){
+        }
+        catch(SQLException se){
             se.printStackTrace();
+            fail = 1;
             if (dbcon != null) {
                 try {
-                    System.err.print("Transaction is being rolled back");
+                    System.err.println("Transaction is being rolled back");
                     dbcon.rollback();
                 } catch(SQLException excep) {
                     excep.printStackTrace();
@@ -493,33 +462,23 @@ public class phase2 {
         catch(Exception e){
             e.printStackTrace();
         }
-        finally{
-            try{
-                if(stmt!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-            }
-            try{
-                if(dbcon!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
-            }
+        if(fail == 0){
+            System.out.println("Successfully created group " + name);
         }
     }
 
     
-    private void initiateAddingGroup(Connection dbcon, String uid, int gid)throws IOException, SQLException
+    public void initiateAddingGroup(Connection dbcon, String uid, int gid)throws IOException, SQLException
     {
         String msg = "";
         String line = "";
-        String sql = "SELECT g.limit, SUM(m.userID) as cur_member FROM GROUPS g join GROUPMEMBERSHIP m on g.gID = m.gID WHERE gID = '"+ gid +"'";
+        String sql = "SELECT g.limit, SUM(m.userID) as cur_member FROM GROUPS g INNER JOIN GROUPMEMBERSHIP m ON g.gID = m.gID WHERE g.gID = "+ gid +" GROUP BY g.limit";
         Statement stmt = dbcon.createStatement();
         PreparedStatement pstmt = dbcon.prepareStatement("INSERT INTO PENDINGGROUPMEMBERS values(?,?,?)");
         BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
-
-	  ResultSet rs = stmt.executeQuery(sql);
-	
+        int fail = 0;
+        ResultSet rs = stmt.executeQuery(sql);
+    
         while(rs.next()){
             if(rs.getInt("limit")==rs.getInt("cur_member")){
                 System.out.println("This group is full");
@@ -536,10 +495,10 @@ public class phase2 {
             msg = msg + line + "\n";
         }
 
-	    try{
+        try{
             dbcon.setAutoCommit(false);
             dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-	    
+        
             pstmt.setInt(1, gid);
             pstmt.setString(2, uid);
             pstmt.setString(3, msg);
@@ -547,13 +506,16 @@ public class phase2 {
             pstmt.executeUpdate();
 
             dbcon.commit();
-	
-		}
-	    catch(SQLException se){
-            se.printStackTrace();
+    
+        }
+        catch(SQLException se){
+            fail = 1;
+            if(se.getErrorCode() == 1){
+                System.out.println("You have already requested to join this group");
+            }
             if (dbcon != null) {
                 try {
-                    System.err.print("Transaction is being rolled back");
+                    System.err.println("Transaction is being rolled back");
                     dbcon.rollback();
                 } catch(SQLException excep) {
                     excep.printStackTrace();
@@ -563,42 +525,35 @@ public class phase2 {
         catch(Exception e){
             e.printStackTrace();
         }
-        finally{
-            try{
-                if(stmt!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-            }
-            try{
-                if(dbcon!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
-            }
+        if (fail == 0)
+        {
+            System.out.println("You successfully requested to join the group");
         }
     }
 
-   
-    private void sendMessageToUser(Connection dbcon, String uId)throws IOException, SQLException
+    
+    public void sendMessageToUser(Connection dbcon, String uId)throws IOException, SQLException
     {
         int id = 0;
         String msg = "";
         String line = "";
+        int exist = 0;
         BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
         String sql = "SELECT max(msgID) as id FROM Messages";
         Statement stmt = dbcon.createStatement();
         PreparedStatement pstmt = dbcon.prepareStatement("INSERT INTO MESSAGES values(?,?,?,?,?,?)");
-	  String sql2 = "SELECT userID, name FROM PROFILE WHERE userID = '"+ uId +"'";
+        String sql2 = "SELECT userID, name FROM PROFILE WHERE userID = '"+ uId +"'";
+        int fail = 0;
 
-	  ResultSet rs1 = stmt.executeQuery(sql2);
+        ResultSet rs1 = stmt.executeQuery(sql2);
         //if the user exists
-	    while(rs1.next()){
+        while(rs1.next()){
             System.out.println("The userID is: " + rs1.getString("userID") + "\n The name is: " + rs1.getString("name"));
             exist = 1;	
         }
         if(exist == 0){
             System.out.println("The user with id = " + id + " does not exist\nExiting Method...");
-            System.exit(0);
+            return;
         }
 
         System.out.println("Enter the message");
@@ -635,10 +590,11 @@ public class phase2 {
 
         }
         catch(SQLException se){
+            fail = 1;
             se.printStackTrace();
             if (dbcon != null) {
                 try {
-                    System.err.print("Transaction is being rolled back");
+                    System.err.println("Transaction is being rolled back");
                     dbcon.rollback();
                 } catch(SQLException excep) {
                     excep.printStackTrace();
@@ -648,24 +604,14 @@ public class phase2 {
         catch(Exception e){
             e.printStackTrace();
         }
-        finally{
-            try{
-                if(stmt!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-            }
-            try{
-                if(dbcon!=null)
-                    dbcon.close();
-            }catch(SQLException se){
-                se.printStackTrace();
-            }
+        if(fail == 0)
+        {
+            System.out.println("Message Successfully Sent");
         }
-	System.out.println("message Successfully Sent");
-    }
+    }    
 
-
-    static private void sendMessageToGroup(Connection dbcon, int gid, String msg) throws IOException, SQLException
+    //Don't edit past this part. All these functions work correctly
+    public void sendMessageToGroup(Connection dbcon, int gid, String msg) throws IOException, SQLException
     {
         int id = 0;
         String line = "";
@@ -694,8 +640,8 @@ public class phase2 {
             rs1.close();
 
             if(in_group == 0){
-                System.out.print("Sorry you can't send a message to this group since you are not a member");
-                System.exit(0);
+                System.out.println("Sorry you can't send a message to this group since you are not a member");
+                return;
             }
 
             java.sql.Date sqlDate = new java.sql.Date(System.currentTimeMillis());
@@ -732,25 +678,29 @@ public class phase2 {
         System.out.println("Message was successfully sent");
     }
 
-    static private void displayMessages(Connection dbcon) throws IOException, SQLException
+    public void displayMessages(Connection dbcon) throws IOException, SQLException
     {
         String sql = "SELECT * FROM Messages WHERE msgID IN (SELECT msgID FROM MessageRecipient WHERE userID = '" + cur_user + "' )";
         Statement stmt = dbcon.createStatement();
         DateFormat df = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+        int count = 0;
 
         try{
             ResultSet rs = stmt.executeQuery(sql);
-            if(!rs.next())
-            {
-                System.out.println("There are no messages");
-            }
+
             while(rs.next()){
                 System.out.println("From: " + rs.getString("fromID"));
                 System.out.println("Msg: " + rs.getString("message"));
                 System.out.println("Date Sent: " + df.format(rs.getDate("dateSent")));
                 System.out.println();
+                count ++;
             }
             rs.close();
+
+            if(count == 0)
+            {
+                System.out.println("There are no messages");
+            }
         }
         catch(SQLException se){
             se.printStackTrace();
@@ -761,21 +711,18 @@ public class phase2 {
         
     }
 
-    static private void displayNewMessages(Connection dbcon) throws IOException, SQLException
+    public void displayNewMessages(Connection dbcon) throws IOException, SQLException
     {
         String sql = "SELECT * FROM Messages WHERE msgID IN (SELECT msgID FROM MessageRecipient WHERE userID = '" + cur_user + "' )";
         String sql2 = "SELECT lastlogin FROM Profile WHERE userID = '" + cur_user + "'";
         Statement stmt = dbcon.createStatement();
         DateFormat df = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
+        int count = 0;
 
         try{
             ResultSet rs = stmt.executeQuery(sql);
             ResultSet rs2 = stmt.executeQuery(sql2);
 
-            if(!rs.next())
-            {
-                System.out.println("There are no new messages");
-            }
 
             while(rs.next()){
                 if(rs.getTimestamp("lastlogin").compareTo(rs.getDate("dateSent")) <= 0){
@@ -783,9 +730,15 @@ public class phase2 {
                     System.out.println("Msg: " + rs.getString("message"));
                     System.out.println("Date Sent: " + df.format(rs.getDate("dateSent")));
                     System.out.println();
+                    count++;
                 }
             }
             rs.close();
+
+            if(count == 0)
+            {
+                System.out.println("There are no new messages");
+            }
         }
         catch(SQLException se){
             se.printStackTrace();
@@ -795,7 +748,7 @@ public class phase2 {
         }
     }
 
-    static private void searchForUser(Connection dbcon, String search_input) throws IOException, SQLException
+    public void searchForUser(Connection dbcon, String search_input) throws IOException, SQLException
     {
         String sql = " ";
         String [] inputs;
@@ -831,7 +784,7 @@ public class phase2 {
         }
     }
 
-    static private void threeDegrees(Connection dbcon, String userA, String userB) throws IOException, SQLException
+    public void threeDegrees(Connection dbcon, String userA, String userB) throws IOException, SQLException
     {
         String sql = "SELECT v1.f1 as f1, v2.f1 as f2, v3.f1 as f3, v3.f2 as f4 " +
                      "FROM (SELECT * FROM td WHERE f1 = ?) v1 " +
@@ -869,7 +822,7 @@ public class phase2 {
             se.printStackTrace();
             if (dbcon != null) {
                 try {
-                    System.err.print("Transaction is being rolled back");
+                    System.err.println("Transaction is being rolled back");
                     dbcon.rollback();
                 } catch(SQLException excep) {
                     excep.printStackTrace();
@@ -882,7 +835,7 @@ public class phase2 {
         
     }
 
-    static private void topMessages(Connection dbcon, int k, int x) throws IOException, SQLException
+    public void topMessages(Connection dbcon, int k, int x) throws IOException, SQLException
     {
         java.sql.Date sqlDate = new java.sql.Date(System.currentTimeMillis() - 3);
         String sql = "SELECT s1.userID as userID, (s1.sent + s2.recv) as tot_msg " +
@@ -914,7 +867,7 @@ public class phase2 {
         }
     }
 
-    static private void dropUser(Connection dbcon, String user) throws IOException, SQLException
+    public void dropUser(Connection dbcon, String user) throws IOException, SQLException
     {
         String newline = System.getProperty("line.separator");
         String sql = "DELETE FROM Profile WHERE userID = '" + user +"'";
@@ -937,7 +890,7 @@ public class phase2 {
             se.printStackTrace();
             if(dbcon != null) {
                 try {
-                    System.err.print("Transaction is being rolled back");
+                    System.err.println("Transaction is being rolled back");
                     dbcon.rollback();
                 } catch(SQLException excep) {
                     excep.printStackTrace();
@@ -949,7 +902,7 @@ public class phase2 {
         }
     }
 
-    static private void logOut(Connection dbcon) throws IOException, SQLException
+    public void logOut(Connection dbcon) throws IOException, SQLException
     {
         Timestamp cur_time = new Timestamp(System.currentTimeMillis());
         String sql = "UPDATE Profile "+
