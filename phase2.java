@@ -157,7 +157,7 @@ public class phase2 {
     
         //if the user exists
 	    while(rs.next()){
-            System.out.println("The userID is: " + rs.getString("userID") + ". The name is: " + rs.getString("name"));
+            System.out.println("The userID is: " + rs.getString("userID") + "\n The name is: " + rs.getString("name"));
             exist = 1;	
         }
         if(exist == 0){
@@ -165,7 +165,7 @@ public class phase2 {
             System.exit(0);
         }
 
-        System.out.println("Enter a message to send along with the reques");
+        System.out.println("Enter a message to send along with the request");
         msg = buff.readLine();
         while((line = buff.readLine()) != null){
             if(line.isEmpty()){
@@ -229,7 +229,7 @@ public class phase2 {
     private void confirmFriendship(Connection dbcon) throws IOException, SQLException
     {
 	    Timestamp cur_time = new Timestamp(System.currentTimeMillis());
-        int count = 0;
+          int count = 0;
 	    String id = "";
 	    String my_group = "";
 
@@ -362,25 +362,65 @@ public class phase2 {
         }
     }
 
-    //This needs to be changed to meet the requirements of the project
+
     private void displayFriends(Connection dbcon) throws IOException, SQLException
     {
-        String sql = "SELECT userID, name1, userID2 as FuserID, name as Fname FROM FRIENDS f join (SELECT userID, name as name1 FROM PROFILE WHERE userID IN (SELECT userID1 FROM FRIENDS WHERE userID2 = '" + cur_user + "') OR userID IN (SELECT userID2 FROM FRIENDS WHERE userID1= '" + cur_user + "')) s ON f.userID1 = s.userID " +
-	               "SELECT userID, name1, userID1 as FuserID, name as Fname FROM FRIENDS f join (SELECT userID, name as name1 FROM PROFILE WHERE userID IN (SELECT userID1 FROM FRIENDS WHERE userID2 = '" + cur_user + "') OR userID IN (SELECT userID2 FROM FRIENDS WHERE userID1= '" + cur_user + "')) s ON f.userID2 = s.userID "; 
+	 String select = "0";
+        String sql = "SELECT userID, name FROM PROFILE WHERE userID IN (SELECT userID1 FROM FRIENDS WHERE userID2 = '" + cur_user + "') OR userID IN (SELECT userID2 FROM FRIENDS WHERE userID1= '" + cur_user + "')"; 
+	 String sql2 = "SELECT userID, name, date_of_birth FROM PROFILE WHERE userID = '"+ select +"'";
         Statement stmt = dbcon.createStatement();
+	  BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
 
-        try{
-            ResultSet rs = stmt.executeQuery(sql);
-            while(rs.next()){
-                System.out.println("ID: " + rs.getString("userID"));
-                System.out.println("Name: " + rs.getString("name1"));		         
-                System.out.println("FriendID: " + rs.getString("FuserID"));
-                System.out.println("FriendName: " + rs.getString("Fname"));
-                System.out.println();
-            }
-            rs.close();
+       
+     	   do{	
+		if(select == "0"){
+		           //show the main menu
+			ResultSet rs = stmt.executeQuery(sql);
+	      		if(!rs.next())
+           		 	{
+               	     		System.out.println("You do not have friends");
+           		 	}
 
-        }
+            		while(rs.next()){
+                			System.out.println("ID: " + rs.getString("userID"));
+                			System.out.println("Name: " + rs.getString("name"));
+		   		ResultSet rs1 = stmt.executeQuery(sql);
+		     		if(!rs.next())
+           		    		 {
+               	     			System.out.println("He/She does not have friends");
+           		     		 }
+	
+		   		while(rs1.next()){	         
+                				System.out.println("FriendID: " + rs.getString("UserID"));
+                				System.out.println("FriendName: " + rs.getString("name"));
+                				System.out.println();
+		    			}	
+		   			rs1.close();
+		   			System.out.println("\n");
+            			}
+            			rs.close();
+			}
+
+		System.out.println("Please enter the UserID you want to see or enter number 0 to return main menu:");
+        	  	select = buff.readLine();
+	  	ResultSet rs2 = stmt.executeQuery(sql2);
+		
+		//if the user exists
+	    	while(rs2.next()){
+            		System.out.println("The userID is: " + rs2.getString("userID") + "\n The name is: " + rs2.getString("name") + "\n The date of birth is: " + rs2.getString("date_of_birth"));
+            		exist = 1;	
+        	   	}
+        		if(exist == 0){
+            		System.out.println("The user does not exist\nExiting Method...");
+            		System.exit(0);
+       	  	}
+		
+		if(select == "0"){
+			System.out.println("Return to the main menu...");
+		}
+
+        }while(1)
+
         catch(SQLException se){
             se.printStackTrace();
         }
@@ -402,40 +442,40 @@ public class phase2 {
         }
     }
 
-    //haven't made many changes to this
+    
     private void createGroup(Connection dbcon, String name, String dct, String limit)throws IOException, SQLException
     {
         int id = 0;
         String role = "manager";
 
-	    String sql = "SELECT max(gID) as id FROM GROUPS";
-	    Statement stmt = dbcon.createStatement();
+	  String sql = "SELECT max(gID) as id FROM GROUPS";
+	  Statement stmt = dbcon.createStatement();
         PreparedStatement pstmt= dbcon.prepareStatement("INSERT INTO GROUPS values(?,?,?,?)");
-	    PreparedStatement prepStatement = dbcon.prepareStatement("INSERT INTO GROUPMEMBERSHIP values(?,?,?)");
+	  PreparedStatement prepStatement = dbcon.prepareStatement("INSERT INTO GROUPMEMBERSHIP values(?,?,?)");
 
-	    try{
-	  	    ResultSet rs = stmt.executeQuery(sql);
-            while(rs.next()){
-                id = rs.getInt("id");
+	  try{
+	  	ResultSet rs = stmt.executeQuery(sql);
+            	while(rs.next()){
+             id = rs.getInt("id");
             }
-            rs.close();
+         rs.close();
 
-            dbcon.setAutoCommit(false);
+         dbcon.setAutoCommit(false);
             dbcon.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
 
-            pstmt.setInt(1, id+1);
-            pstmt.setString(2, name);
-            pstmt.setString(3, dct);
-            pstmt.setString(4, limit);
+          pstmt.setInt(1, id+1);
+          pstmt.setString(2, name);
+          pstmt.setString(3, dct);
+          pstmt.setString(4, limit);
 
-            prepStatement.setInt(1, id+1); 
-            prepStatement.setString(2, cur_user);
-            prepStatement.setString(3, role);
+          prepStatement.setInt(1, id+1); 
+          prepStatement.setString(2, cur_user);
+          prepStatement.setString(3, role);
 
-            pstmt.executeUpdate();
-            prepStatement.executeUpdate();
+          pstmt.executeUpdate();
+          prepStatement.executeUpdate();
 
-            dbcon.commit();
+          dbcon.commit();
 
 		}
 	    catch(SQLException se){
@@ -467,7 +507,7 @@ public class phase2 {
         }
     }
 
-    //haven't made many changes to this
+    
     private void initiateAddingGroup(Connection dbcon, String uid, int gid)throws IOException, SQLException
     {
         String msg = "";
@@ -477,7 +517,7 @@ public class phase2 {
         PreparedStatement pstmt = dbcon.prepareStatement("INSERT INTO PENDINGGROUPMEMBERS values(?,?,?)");
         BufferedReader buff = new BufferedReader(new InputStreamReader(System.in));
 
-	    ResultSet rs = stmt.executeQuery(sql);
+	  ResultSet rs = stmt.executeQuery(sql);
 	
         while(rs.next()){
             if(rs.getInt("limit")==rs.getInt("cur_member")){
@@ -537,7 +577,7 @@ public class phase2 {
         }
     }
 
-    //haven't made many changes to this
+   
     private void sendMessageToUser(Connection dbcon, String uId)throws IOException, SQLException
     {
         int id = 0;
@@ -547,9 +587,19 @@ public class phase2 {
         String sql = "SELECT max(msgID) as id FROM Messages";
         Statement stmt = dbcon.createStatement();
         PreparedStatement pstmt = dbcon.prepareStatement("INSERT INTO MESSAGES values(?,?,?,?,?,?)");
-	    PreparedStatement prepStatement = dbcon.prepareStatement("INSERT INTO MESSAGERECIPIENT values(?,?)");
+	  String sql2 = "SELECT userID, name FROM PROFILE WHERE userID = '"+ uId +"'";
 
-        //Need to print out the name of the user associated with the passed in user ID
+	  ResultSet rs1 = stmt.executeQuery(sql2);
+        //if the user exists
+	    while(rs1.next()){
+            System.out.println("The userID is: " + rs1.getString("userID") + "\n The name is: " + rs1.getString("name"));
+            exist = 1;	
+        }
+        if(exist == 0){
+            System.out.println("The user with id = " + id + " does not exist\nExiting Method...");
+            System.exit(0);
+        }
+
         System.out.println("Enter the message");
         while((line = buff.readLine()) != null){
             if(line.isEmpty()){
@@ -577,7 +627,6 @@ public class phase2 {
             pstmt.setString(5, null);
             pstmt.setDate(6, sqlDate);
             
-            //I Removed the insert to the messageRecipient table because it's taken care of by a trigger
 
             pstmt.executeUpdate();
 
@@ -611,9 +660,10 @@ public class phase2 {
                 se.printStackTrace();
             }
         }
+	System.out.println("message Successfully Sent");
     }
 
-    //Don't edit past this part. All these functions work correctly
+
     static private void sendMessageToGroup(Connection dbcon, int gid, String msg) throws IOException, SQLException
     {
         int id = 0;
